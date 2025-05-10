@@ -13,7 +13,7 @@ HOST_IP = "192.168.6.51"  # IP address of the PC running TouchDesigner
 HOST_PORT = 8000          # Port TouchDesigner is listening on
 NUM_SENSORS = 2           # Number of TLV493D sensors connected to the TCA9548A
                           # (Ensure they are on channels 0, 1, ..., NUM_SENSORS-1)
-SEND_FREQUENCY_HZ = 10     # Desired send frequency in Hz. 0 for max speed.
+SEND_FREQUENCY_HZ = 100     # Desired send frequency in Hz. 0 for max speed.
                           # If > 0, a delay will be introduced.
 
 # --- Initialize I2C and Multiplexer ---
