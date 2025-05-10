@@ -13,7 +13,7 @@ import os           # For system commands like reboot/shutdown
 import threading    # For running the command listener in a separate thread
 
 # --- Configuration ---
-HOST_IP_PC = "192.168.1.51" # IP address of the PC running TouchDesigner (for sensor data)
+HOST_IP_PC = "192.168.6.51" # IP address of the PC running TouchDesigner (for sensor data)
 HOST_PORT_PC = 8000         # Port TouchDesigner is listening on (for sensor data)
 NUM_SENSORS = 2             # Max number of TLV493D sensors.
 PI_COMMAND_PORT = 8001      # Port the Raspberry Pi will listen on for commands
