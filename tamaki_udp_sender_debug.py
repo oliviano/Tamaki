@@ -12,11 +12,11 @@ import logging
 # --- Minimal Configuration ---
 TARGET_HOST_IP = "192.168.6.51"  # <--- SET YOUR PC's IP ADDRESS
 TARGET_HOST_PORT = 8000
-SEND_INTERVAL_SECONDS = 0.1  # Send data every 0.1 seconds (10 Hz)
+SEND_INTERVAL_SECONDS = 0.05  # Send data every 0.1 seconds (10 Hz)
 
 # --- Setup Logging (Basic) ---
 logging.basicConfig(
-    level=logging.DEBUG, # Use DEBUG to see detailed sensor read attempts
+    level=logging.INFO, # Use DEBUG to see detailed sensor read attempts
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                     sensor_data_payload["Sensor"]["Sensor_0"] = [{"axis": "x", "val":0.0},{"axis": "y", "val":0.0},{"axis": "z", "val":0.0}] # Placeholder
 
             # --- Optional DELAY 1 ---
-            # time.sleep(0.05) # <--- UNCOMMENT TO TEST DELAY AFTER DIRECT READ
+            time.sleep(0.05) # <--- UNCOMMENT TO TEST DELAY AFTER DIRECT READ
 
             # --- Read Sensor 1 (TCA Channel 0) ---
             if sensor1_tca_ch0:
