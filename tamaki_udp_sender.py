@@ -47,9 +47,14 @@ i2c = None
 def load_configuration():
     global HOST_IP_PC, HOST_PORT_PC, PI_COMMAND_PORT
     global g_send_frequency_hz, g_enable_system_commands, g_sensor_configs_from_file
-
+    
+    # Get the absolute path of the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Construct the full path to the config.ini file
+    config_file_path = os.path.join(script_dir, 'config.ini')
+    
     config = configparser.ConfigParser()
-    config_file_path = 'config.ini'
 
     if not os.path.exists(config_file_path):
         logging.error(f"Configuration file '{config_file_path}' not found. Exiting.")
