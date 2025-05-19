@@ -17,11 +17,24 @@ This project uses Adafruit's Blinka and the following libraries:
 
 ### Install Dependencies
 
-> *TODO:* Add installation commands here.
+> *TODO:* fnish installation instructions here.
 
 ```bash
-# Example placeholder
-pip install adafruit-blinka 
+# Update Pi
+
+# Create venv & Assign --system-site-packages
+python3 -m venv env --system-site-packages
+# activate venv "env"
+source env/bin/activate
+# install blinka with adafruit script:
+cd ~
+pip3 install --upgrade adafruit-python-shell
+# Downloads blinka script
+wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py 
+# Run blinka install script
+sudo -E env PATH=$PATH python3 raspi-blinka.py
+
+# install libraries
 pip install adafruit-circuitpython-tlv493d 
 pip install adafruit-circuitpython-tca9548a
 ```
