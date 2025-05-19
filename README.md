@@ -42,10 +42,18 @@ ls /dev/i2c* /dev/spi*
 # See https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 
 # install libraries
-pip install adafruit-circuitpython-tlv493d 
-pip install adafruit-circuitpython-tca9548a
+# we have to be explicit about our venv / and use direct path to pip3.
+sudo env/bin/pip3 install adafruit-circuitpython-tlv493d
+sudo env/bin/pip3 install adafruit-circuitpython-tca9548a
 
-# install libraries
+# from guide:
+sudo pip3 install adafruit-circuitpython-tlv493d
+sudo pip3 install adafruit-circuitpython-tca9548a
+
+# other install
+sudo apt install screen
+sudo apt install btop # optional fancy looking ressource monitor
+sudo apt install htop # optional ressource monitor
 
 ```
 ### 🔄 Start the Project (Manual Method)
