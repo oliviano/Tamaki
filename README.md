@@ -34,9 +34,19 @@ wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/m
 # Run blinka install script
 sudo -E env PATH=$PATH python3 raspi-blinka.py
 
+--> Refer to adafruit page for Raspberry Pi 5 Notes
+
+# Test I2C Ports
+ls /dev/i2c* /dev/spi*
+# Test with "blinkatest.py
+# See https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
+
 # install libraries
 pip install adafruit-circuitpython-tlv493d 
 pip install adafruit-circuitpython-tca9548a
+
+# install libraries
+
 ```
 ### 🔄 Start the Project (Manual Method)
 Activate the virtual environment and start the sender script:
