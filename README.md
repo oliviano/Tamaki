@@ -21,6 +21,10 @@ This project uses Adafruit's Blinka and the following libraries:
 
 ```bash
 # Update Pi
+sudo apt-get update
+sudo apt-get -y upgrade
+sudo apt-get install python3-pip
+sudo apt install --upgrade python3-setuptools
 
 # Create venv & Assign --system-site-packages
 python3 -m venv env --system-site-packages
@@ -38,7 +42,7 @@ sudo -E env PATH=$PATH python3 raspi-blinka.py
 
 # Test I2C Ports
 ls /dev/i2c* /dev/spi*
-# Test with "blinkatest.py
+# Test with blinkatest.py
 # See https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 
 # install libraries
