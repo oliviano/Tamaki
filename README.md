@@ -73,6 +73,12 @@ screen -S tamaki
 ```
 ### 🚀 Auto Start Script 
 Use the included starttamaki.sh script in this repository to start the project.
+`./starttamaki.sh`
+To check if the script is running ( as it's started inside a screen ), use the following:
+```
+screen -ls # will show a list of screens,
+screen -r tamaki # will re-attached to the screen tamaki ( that is screen name created by starttamaki )
+```
 
 ### 🔐 Allow Passwordless sudo for Script Execution
 
