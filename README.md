@@ -100,4 +100,7 @@ o2d ALL=(ALL) NOPASSWD: /home/o2d/env/bin/python3
 youruser ALL=(ALL) NOPASSWD: /full/path/to/env/bin/python3
 ```
 
+Remember to make the script executable:
+`chmod +x scriptname.sh`
+
 > ⚠️ **Caution:** Only allow passwordless `sudo` for specific, trusted commands to avoid security risks.
