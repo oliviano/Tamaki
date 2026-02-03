@@ -104,3 +104,22 @@ Remember to make the script executable:
 `chmod +x scriptname.sh`
 
 > ⚠️ **Caution:** Only allow passwordless `sudo` for specific, trusted commands to avoid security risks.
+
+## 🛠️ AutoRun (desktop mode ) on Pi Installation
+
+Create the Autostart directory (if it doesn't exist):
+`mkdir -p ~/.config/autostart`
+
+Create a new .desktop file:
+`nano ~/.config/autostart/SensorSender.desktop`
+
+Edit the following content:
+```
+[Desktop Entry]
+Type=Application
+Name=Sensor Sender
+Exec=/home/o2d/starttimemachine.sh
+Terminal=false
+```
+
+Make sure our script startupscript.sh is executable ( chmod +x scriptname.sh)
