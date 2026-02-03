@@ -4,7 +4,12 @@ p: o2d
 
 blueberry
 
-
+### Autoboot ###
+1) Test added to .profile
+```
+# Run Timemachine
+/home/o2d/starttimemachine.sh
+```
 ### Troubleshooting ###
 
 #### BlueBerry ####
