@@ -4,8 +4,8 @@ HostPortPC = 8010
 PiCommandPort = 8011
 
 [Sensors]
-NumSensors = 1
-InitialSendFrequencyHz = 75.0
+NumSensors = 4
+InitialSendFrequencyHz = 50.0
 
 [System]
 # Set to true if reboot/shutdown commands should actually execute
