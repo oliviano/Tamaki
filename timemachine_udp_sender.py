@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Olivier Jean for PE JON BAXTER
 # SPDX-License-Identifier: MIT
-# Rotary Encoder version (no TCA9548A) - SEND ON CHANGE
+# Rotary Encoder version (no TCA9548A)
 
 import time
 import board
@@ -30,6 +30,7 @@ CMD_GET_STATUS = "get_status"
 g_send_frequency_hz = 0.0
 g_frequency_lock = threading.Lock()
 g_stop_command_listener = threading.Event()
+
 g_enable_system_commands = False
 
 # Rotary globals
@@ -37,13 +38,11 @@ g_i2c = None
 g_seesaw = None
 g_encoder = None
 g_button = None
-
-# last-known states (for change detection)
 g_last_position = None
-g_last_button_val = 1  # pullup => 1 = not pressed, 0 = pressed
 g_button_held = False
 
-# status compatibility
+# Optional: keep these for status compatibility
+NUM_SENSORS = 0
 g_initialized_sensor_count = 0
 
 
@@ -66,8 +65,8 @@ def load_configuration():
         HOST_PORT_PC = config.getint('Network', 'HostPortPC', fallback=8000)
         PI_COMMAND_PORT = config.getint('Network', 'PiCommandPort', fallback=8001)
 
-        # Reuse your existing frequency setting as POLL frequency now
-        g_send_frequency_hz = config.getfloat('Sensors', 'InitialSendFrequencyHz', fallback=120.0)
+        # Reuse your existing frequency setting
+        g_send_frequency_hz = config.getfloat('Sensors', 'InitialSendFrequencyHz', fallback=60.0)
 
         g_enable_system_commands = config.getboolean('System', 'EnableSystemCommands', fallback=False)
         logging.info(f"System commands (reboot/shutdown) enabled: {g_enable_system_commands}")
@@ -82,13 +81,13 @@ def load_configuration():
     logging.info("Configuration loaded successfully.")
     logging.info(f"  Target PC IP: {HOST_IP_PC}, Port: {HOST_PORT_PC}")
     logging.info(f"  Pi Command Port: {PI_COMMAND_PORT}")
-    logging.info(f"  Poll Frequency: {g_send_frequency_hz} Hz")
+    logging.info(f"  Initial Send Frequency: {g_send_frequency_hz} Hz")
 
 
 # --- Rotary Encoder Initialization ---
 def initialize_hardware_and_rotary():
     global g_i2c, g_seesaw, g_encoder, g_button
-    global g_last_position, g_last_button_val, g_initialized_sensor_count
+    global g_last_position, g_initialized_sensor_count
 
     try:
         g_i2c = board.I2C()
@@ -102,7 +101,7 @@ def initialize_hardware_and_rotary():
         logging.error(f"Error initializing Seesaw rotary encoder at 0x36: {e}. Is it connected? Exiting.")
         exit(1)
 
-    # Optional sanity check
+    # Optional sanity check (matches Adafruit example)
     try:
         seesaw_product = (g_seesaw.get_version() >> 16) & 0xFFFF
         logging.info(f"Rotary Seesaw product ID: {seesaw_product}")
@@ -122,101 +121,84 @@ def initialize_hardware_and_rotary():
     # Encoder
     try:
         g_encoder = rotaryio.IncrementalEncoder(g_seesaw)
-        g_last_position = -g_encoder.position  # negate so clockwise is positive
+        # Initialize last_position
+        g_last_position = -g_encoder.position  # negate so clockwise is positive (per your example)
     except Exception as e:
         logging.error(f"Error initializing rotary encoder: {e}")
         exit(1)
-
-    # Initial button state
-    try:
-        g_last_button_val = 1 if g_button.value else 0
-    except Exception:
-        g_last_button_val = 1
 
     g_initialized_sensor_count = 1
     logging.info("Rotary encoder initialized successfully (I2C direct, no TCA).")
 
 
-# --- Rotary Reading (Change Detect) + JSON Building ---
-def read_rotary_change_event():
+# --- Rotary Reading and JSON Building ---
+def read_rotary_and_build_json():
     """
-    Returns:
-      (payload_json_str or None, changed_bool)
+    Sends a compact JSON payload suitable for TouchDesigner.
 
-    changed_bool is True if either:
-      - position changed
-      - button edge occurred (pressed/released)
+    Payload example:
+    {
+      "Rotary": {
+        "position": 12,
+        "delta": 1,
+        "button": 0,
+        "button_event": "pressed" | "released" | null
+      }
+    }
     """
-    global g_last_position, g_last_button_val, g_button_held
+    global g_last_position, g_button_held
 
-    position = g_last_position if g_last_position is not None else 0
+    position = 0
     delta = 0
-    button_val = g_last_button_val
+    button_val = 1  # pullup => 1 = not pressed, 0 = pressed
     button_event = None
 
-    changed = False
-
-    # Read encoder position
     try:
+        # Negate so clockwise rotation positive
         position = -g_encoder.position
         if g_last_position is None:
             g_last_position = position
-
         delta = position - g_last_position
-        if delta != 0:
-            changed = True
-
         g_last_position = position
-
     except OSError as e:
-        logging.warning(f"I2C error reading encoder position: {e}")
+        logging.warning(f"I2C error reading encoder position: {e}. Sending last/zeroed values.")
     except Exception as e:
-        logging.error(f"Unexpected error reading encoder position: {e}")
+        logging.error(f"Unexpected error reading encoder position: {e}. Sending last/zeroed values.")
 
-    # Read button + edge detect
     try:
-        button_val = 1 if g_button.value else 0  # 0 pressed, 1 released
-
-        # edge detect -> set button_event
+        button_val = 1 if g_button.value else 0  # g_button.value True when not pressed
+        # replicate your "pressed/released" logic
         if button_val == 0 and not g_button_held:
             g_button_held = True
             button_event = "pressed"
-            changed = True
         elif button_val == 1 and g_button_held:
             g_button_held = False
             button_event = "released"
-            changed = True
-
-        g_last_button_val = button_val
-
     except OSError as e:
         logging.warning(f"I2C error reading button: {e}")
     except Exception as e:
         logging.error(f"Unexpected error reading button: {e}")
 
-    if not changed:
-        return None, False
-
     payload = {
         "Rotary": {
             "position": int(position),
             "delta": int(delta),
-            "button": int(button_val),      # 0 pressed, 1 released
-            "button_event": button_event    # "pressed"/"released"/None
+            "button": int(button_val),          # 0 pressed, 1 released
+            "button_event": button_event        # "pressed"/"released"/None
         }
     }
 
     try:
-        return json.dumps(payload), True
+        return json.dumps(payload)
     except TypeError as e:
         logging.error(f"Error serializing rotary data to JSON: {e}")
         logging.debug(f"Problematic data for JSON: {payload}")
-        return None, False
+        return None
 
 
 # --- UDP Command Listener Function ---
 def command_listener():
-    global g_send_frequency_hz, g_enable_system_commands
+    global g_send_frequency_hz, g_frequency_lock, g_enable_system_commands
 
     listener_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -245,6 +227,7 @@ def command_listener():
                         listener_socket.sendto(f"ACK: {CMD_REBOOT} initiated.".encode('utf-8'), addr)
                         os.system("sudo reboot")
                     else:
+                        logging.warning(f"COMMAND_LISTENER: {CMD_REBOOT} disabled by configuration.")
                         listener_socket.sendto(f"NACK: {CMD_REBOOT} disabled by configuration.".encode('utf-8'), addr)
 
                 elif action == CMD_SHUTDOWN:
@@ -253,6 +236,7 @@ def command_listener():
                         listener_socket.sendto(f"ACK: {CMD_SHUTDOWN} initiated.".encode('utf-8'), addr)
                         os.system("sudo shutdown -h now")
                     else:
+                        logging.warning(f"COMMAND_LISTENER: {CMD_SHUTDOWN} disabled by configuration.")
                         listener_socket.sendto(f"NACK: {CMD_SHUTDOWN} disabled by configuration.".encode('utf-8'), addr)
 
                 elif action == CMD_SET_FREQUENCY:
@@ -260,9 +244,10 @@ def command_listener():
                     if isinstance(new_freq_val, (int, float)) and new_freq_val >= 0:
                         with g_frequency_lock:
                             g_send_frequency_hz = float(new_freq_val)
-                        logging.info(f"COMMAND_LISTENER: Poll frequency set to: {g_send_frequency_hz} Hz")
+                        logging.info(f"COMMAND_LISTENER: Send frequency set to: {g_send_frequency_hz} Hz")
                         listener_socket.sendto(f"ACK: Frequency set to {g_send_frequency_hz} Hz".encode('utf-8'), addr)
                     else:
+                        logging.warning(f"COMMAND_LISTENER: Invalid frequency value received: {new_freq_val}")
                         listener_socket.sendto(f"NACK: Invalid frequency value '{new_freq_val}'".encode('utf-8'), addr)
 
                 elif action == CMD_GET_STATUS:
@@ -270,18 +255,18 @@ def command_listener():
                         current_freq = g_send_frequency_hz
                     status_msg = {
                         "status": "OK",
-                        "poll_frequency_hz": current_freq,
+                        "send_frequency_hz": current_freq,
                         "initialized_devices": g_initialized_sensor_count,
-                        "device_type": "seesaw_rotary_encoder",
-                        "last_position": g_last_position,
-                        "button": g_last_button_val
+                        "device_type": "seesaw_rotary_encoder"
                     }
                     listener_socket.sendto(json.dumps(status_msg).encode('utf-8'), addr)
 
                 else:
+                    logging.warning(f"COMMAND_LISTENER: Unknown command received: {action}")
                     listener_socket.sendto(f"NACK: Unknown command '{action}'".encode('utf-8'), addr)
 
             except json.JSONDecodeError:
+                logging.error(f"COMMAND_LISTENER: Invalid JSON received from {addr}: {command_str}")
                 listener_socket.sendto("NACK: Invalid JSON format".encode('utf-8'), addr)
             except Exception as e:
                 logging.error(f"COMMAND_LISTENER: Error processing command from {addr}: {e}")
@@ -305,64 +290,70 @@ def main():
     command_thread = threading.Thread(target=command_listener, name="CmdListenerThread", daemon=True)
     command_thread.start()
 
-    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    logging.info(f"Sending rotary data (on change) as JSON to {HOST_IP_PC}:{HOST_PORT_PC}")
+    sensor_data_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    logging.info(f"Sending rotary data as JSON to {HOST_IP_PC}:{HOST_PORT_PC}")
 
-    sent_count = 0
+    packet_count = 0
     start_time = time.monotonic()
-
-    # OPTIONAL keepalive (uncomment if you want a heartbeat even when idle)
-    # KEEPALIVE_SECONDS = 1.0
-    # last_keepalive = time.monotonic()
 
     try:
         while not g_stop_command_listener.is_set():
             with g_frequency_lock:
-                current_poll_hz = g_send_frequency_hz
+                current_target_freq = g_send_frequency_hz
 
-            desired_delay_s = (1.0 / current_poll_hz) if current_poll_hz > 0 else 0.0
-            loop_start = time.monotonic()
+            desired_delay_s = (1.0 / current_target_freq) if current_target_freq > 0 else 0.0
 
-            payload_json, changed = read_rotary_change_event()
+            loop_start_time = time.monotonic()
 
-            if changed and payload_json:
+            udp_payload_json = read_rotary_and_build_json()
+            if udp_payload_json:
                 try:
-                    udp_socket.sendto(payload_json.encode('utf-8'), (HOST_IP_PC, HOST_PORT_PC))
-                    sent_count += 1
+                    sensor_data_socket.sendto(udp_payload_json.encode('utf-8'), (HOST_IP_PC, HOST_PORT_PC))
+                    packet_count += 1
+                except socket.error as e:
+                    logging.error(f"MAIN_LOOP: Socket error sending rotary data: {e}")
                 except Exception as e:
-                    logging.error(f"MAIN_LOOP: Error sending UDP: {e}")
+                    logging.error(f"MAIN_LOOP: Unexpected error sending rotary data: {e}")
 
-            # OPTIONAL keepalive send (commented out by default)
-            # now = time.monotonic()
-            # if now - last_keepalive >= KEEPALIVE_SECONDS:
-            #     last_keepalive = now
-            #     keepalive_payload = json.dumps({"Rotary": {"keepalive": 1}})
-            #     udp_socket.sendto(keepalive_payload.encode("utf-8"), (HOST_IP_PC, HOST_PORT_PC))
-
-            loop_time = time.monotonic() - loop_start
+            loop_time_taken = time.monotonic() - loop_start_time
 
             if desired_delay_s > 0:
-                sleep_duration = desired_delay_s - loop_time
+                sleep_duration = desired_delay_s - loop_time_taken
                 if sleep_duration > 0:
                     time.sleep(sleep_duration)
 
-            # Light logging: every ~5 seconds of runtime, report send rate
-            if (time.monotonic() - start_time) > 5 and sent_count % 50 == 0 and sent_count > 0:
-                elapsed = time.monotonic() - start_time
-                logging.info(f"Sent {sent_count} change packets over {elapsed:.1f}s (avg {sent_count/elapsed:.2f} pkt/s)")
+            if packet_count > 0 and packet_count % (int(current_target_freq * 5) if current_target_freq > 0 else 200) == 0:
+                current_run_time = time.monotonic() - start_time
+                if current_run_time > 0:
+                    actual_freq = packet_count / current_run_time
+                    freq_target_str = f"{current_target_freq:.1f} Hz" if current_target_freq > 0 else "Max"
+                    logging.info(
+                        f"Sent {packet_count} rotary packets. Avg Freq: {actual_freq:.2f} Hz "
+                        f"(Target: {freq_target_str}). Last loop: {loop_time_taken*1000:.3f} ms"
+                    )
 
     except KeyboardInterrupt:
-        logging.info("MAIN_LOOP: Program interrupted by user.")
-    except Exception:
-        logging.error("MAIN_LOOP: Unhandled exception occurred:", exc_info=True)
+        logging.info("MAIN_LOOP: Program interrupted by user. Initiating shutdown.")
+    except Exception as e:
+        logging.error("MAIN_LOOP: An unhandled exception occurred:", exc_info=True)
     finally:
-        logging.info("Shutting down...")
+        logging.info("MAIN_LOOP: Stopping command listener thread...")
         g_stop_command_listener.set()
-
         if command_thread.is_alive():
             command_thread.join(timeout=2.0)
+            if command_thread.is_alive():
+                logging.warning("MAIN_LOOP: Command listener thread did not terminate gracefully.")
 
-        udp_socket.close()
+        logging.info("MAIN_LOOP: Closing UDP socket.")
+        sensor_data_socket.close()
+
+        current_run_time = time.monotonic() - start_time
+        if current_run_time > 0 and packet_count > 0:
+            actual_freq = packet_count / current_run_time
+            logging.info(f"Total rotary packets sent: {packet_count}")
+            logging.info(f"Total runtime: {current_run_time:.2f} seconds")
+            logging.info(f"Average send frequency: {actual_freq:.2f} Hz")
+
         logging.info("Application finished.")
 
 
